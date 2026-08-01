@@ -70,7 +70,7 @@ configure<ApplicationExtension> {
         }
     }
     defaultConfig {
-        applicationId = configProperties.getProperty("APPLICATION_ID")
+        applicationId = "org.meshtastic.app.clone"
 
         versionCode = versionInfo.versionCode
         versionName = versionInfo.versionName
