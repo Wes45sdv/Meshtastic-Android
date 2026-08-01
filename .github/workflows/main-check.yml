@@ -1,4 +1,4 @@
-name: Manual Build APK (Clean Release)
+name: Manual Build APK (No Leaks)
 
 on:
   workflow_dispatch:
@@ -19,19 +19,16 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # Этот шаг заставляет релизную сборку использовать стандартный отладочный ключ
-      - name: Force Debug Signing for Release Build
+      # Этот шаг намертво отключает LeakCanary в конфигурации зависимостей приложения
+      - name: Disable LeakCanary
         run: |
-          echo "storeFile=debug.keystore" > keystore.properties
-          echo "storePassword=android" >> keystore.properties
-          echo "keyAlias=androiddebugkey" >> keystore.properties
-          echo "keyPassword=android" >> keystore.properties
+          find . -name "build.gradle.kts" -type f -exec sed -i 's/libs.leakcanary.android/libs.empty.dependency/g' {} + || true
 
       - name: Build with Gradle
-        run: ./gradlew :androidApp:assembleFdroidRelease
+        run: ./gradlew :androidApp:assembleFdroidDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: meshtastic-clean-release
-          path: androidApp/build/outputs/apk/fdroid/release/*.apk
+          name: meshtastic-no-leaks
+          path: androidApp/build/outputs/apk/fdroid/debug/*.apk
