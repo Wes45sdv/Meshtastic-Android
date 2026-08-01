@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,6 +14,17 @@ permissions:
 concurrency:
   group: main-${{ github.ref }}
   cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    uses: ./.github/workflows/reusable-check.yml
+    with:
+      run_lint: false
+      run_unit_tests: true
+      run_coverage: true
+      run_desktop_builds: true
+      upload_artifacts: true
+    secrets: inherit
 
 jobs:
   # Every commit on main arrives via the merge queue, which already ran lint,
