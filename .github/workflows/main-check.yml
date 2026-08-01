@@ -1,4 +1,4 @@
-name: Manual Build APK
+name: Manual Build APK (Clean Release)
 
 on:
   workflow_dispatch:
@@ -19,11 +19,19 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      # Этот шаг заставляет релизную сборку использовать стандартный отладочный ключ
+      - name: Force Debug Signing for Release Build
+        run: |
+          echo "storeFile=debug.keystore" > keystore.properties
+          echo "storePassword=android" >> keystore.properties
+          echo "keyAlias=androiddebugkey" >> keystore.properties
+          echo "keyPassword=android" >> keystore.properties
+
       - name: Build with Gradle
-        run: ./gradlew assembleFdroidDebug
+        run: ./gradlew :androidApp:assembleFdroidRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: meshtastic-clone-apk
-          path: androidApp/build/outputs/apk/fdroid/debug/*.apk
+          name: meshtastic-clean-release
+          path: androidApp/build/outputs/apk/fdroid/release/*.apk
