@@ -1,120 +1,29 @@
-name: Main CI (Verify & Build)
+name: Manual Build APK
 
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
-concurrency:
-  group: main-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  validate-and-build:
-    uses: ./.github/workflows/reusable-check.yml
-    with:
-      run_lint: false
-      run_unit_tests: true
-      run_coverage: true
-      run_desktop_builds: true
-      upload_artifacts: true
-    secrets: inherit
-
-jobs:
-  # Every commit on main arrives via the merge queue, which already ran lint,
-  # screenshot validation, rb-check, and the (coverage-free) test shards on this
-  # exact merge commit. This workflow:
-  #   - re-runs the test shards WITH coverage: Kover instrumentation lives here,
-  #     off the queue's critical path, and this is the sole source of Codecov
-  #     mainline coverage (PRs and the queue both skip it)
-  #   - builds the debug APKs for the snapshot release below with -SNAPSHOT
-  #     naming (the queue skips run_android_build; the PR already assembled them)
-  #   - builds the desktop distributables. Desktop packaging runs here post-merge
-  #     rather than in the merge queue: :desktopApp:test in the queue's shard-app
-  #     already covers compilation, and the 4-OS matrix (macos/windows queue
-  #     times) would slow every merge.
-  # run_lint: false skips lint, screenshot-check, and rb-check (queue-verified).
-  validate-and-build:
-    if: github.repository == 'meshtastic/Meshtastic-Android'
-    uses: ./.github/workflows/reusable-check.yml
-    with:
-      run_lint: false
-      run_unit_tests: true
-      run_coverage: true
-      run_desktop_builds: true
-      upload_artifacts: true
-    secrets: inherit
-
-  # Republishes the debug APKs validate-and-build already produced as a rolling "snapshot"
-  # prerelease that moves to HEAD on every push to main, so testers get a stable download
-  # link instead of digging through Actions artifacts (which require a GitHub login and
-  # expire after 7 days).
-  publish-snapshot:
-    needs: validate-and-build
-    # !cancelled(): a desktop-matrix failure fails validate-and-build as a whole, but the
-    # Android APKs may still have built fine — attempt the snapshot regardless. If the
-    # APK build itself failed, the artifact download below fails and this job goes red.
-    if: github.repository == 'meshtastic/Meshtastic-Android' && !cancelled()
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    env:
-      # CROWDIN_GITHUB_TOKEN (a PAT), not the default GITHUB_TOKEN, because the repo's tag
-      # rulesets block the default token from creating/deleting tags — same token every other
-      # tag-touching workflow here uses.
-      GH_TOKEN: ${{ secrets.CROWDIN_GITHUB_TOKEN }}
+  build:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # git rev-list --count needs full history for the versionCode
-          token: ${{ secrets.CROWDIN_GITHUB_TOKEN }}
-          persist-credentials: false # no git push here; gh does the authed work via GH_TOKEN
+          submodules: recursive
 
-      - name: Download debug APKs
-        uses: actions/download-artifact@v8
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          name: app-debug-apks
-          path: artifacts
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-      # A moving tag reuses the same release URL forever, and Obtainium fingerprints the
-      # asset URL — so without a changing filename it would never detect a new build.
-      # Embed the (monotonic) versionCode in each APK name; same formula the app build uses.
-      - name: Rename APKs with versionCode
-        run: |
-          COMMIT_COUNT=$(git rev-list --count HEAD)
-          OFFSET=$(grep '^VERSION_CODE_OFFSET=' config.properties | cut -d'=' -f2)
-          VERSION_CODE=$((COMMIT_COUNT + OFFSET))
-          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
-          mkdir -p upload
-          find artifacts -name '*.apk' | while read -r f; do
-            cp "$f" "upload/$(basename "$f" .apk)-${VERSION_CODE}.apk"
-          done
-          ls -l upload
+      - name: Build with Gradle
+        run: ./gradlew assembleFdroidDebug
 
-      # Delete the previous snapshot release AND its tag, then recreate both at HEAD. This
-      # prunes the now-stale (differently-named) APKs so they don't pile up, and sidesteps the
-      # Releases API refusing to retarget an already-existing tag.
-      - name: Remove previous snapshot release
-        run: gh release delete snapshot --yes --cleanup-tag || true
-
-      - name: Publish snapshot release
-        run: |
-          cat > notes.md <<EOF
-          Automated debug build from the latest commit on \`main\` ($GITHUB_SHA), versionCode $VERSION_CODE.
-          Unsigned/debug-keyed, F-Droid and Google flavors. Not for production use — this release is replaced on every push to main.
-
-          **Obtainium:** enable *Include prereleases*. Each build's APK filename carries the versionCode, so updates are detected.
-          EOF
-          gh release create snapshot upload/*.apk \
-            --title "Snapshot $VERSION_CODE ($GITHUB_SHA)" \
-            --target "$GITHUB_SHA" \
-            --prerelease \
-            --notes-file notes.md
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshtastic-clone-apk
+          path: androidApp/build/outputs/apk/fdroid/debug/*.apk
