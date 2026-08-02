@@ -1,6 +1,7 @@
 name: Reusable Android Check
 
 on:
+  workflow_dispatch:  # <-- Добавили ручной запуск напрямую
   workflow_call:
     inputs:
       run_lint:
