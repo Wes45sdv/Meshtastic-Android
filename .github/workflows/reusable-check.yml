@@ -521,9 +521,9 @@ jobs:
         run: |
           BASE=$(grep '^VERSION_NAME_BASE=' config.properties | cut -d'=' -f2)
           echo "VERSION_NAME=${BASE}-SNAPSHOT" >> "$GITHUB_ENV"
-
+          
       - name: Build Android APKs
-        run: ./gradlew :androidApp:assembleFdroidDebug -Pci=true
+        run: ./gradlew :androidApp:assembleFdroidRelease -Pci=true
         
       - name: Upload debug artifact
         if: ${{ inputs.upload_artifacts }}
