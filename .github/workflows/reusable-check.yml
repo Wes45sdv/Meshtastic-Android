@@ -526,13 +526,16 @@ jobs:
       - name: Build Android APKs
         run: ./gradlew :androidApp:assembleFdroidRelease -Pci=true
         
-      - name: Upload debug artifact
-        if: ${{ inputs.upload_artifacts }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: app-debug-apks
-          path: androidApp/build/outputs/apk/*/debug/*.apk
-          retention-days: 7
+      - name: Sign Android APK
+        run: |
+          # Находим наш собранный релизный APK
+          UNSIGNED_APK=$(find androidApp/build/outputs/apk/ -name "*release-unsigned.apk" | head -1)
+          if [ -z "$UNSIGNED_APK" ]; then
+            echo "APK не найден!" && exit 1
+          fi
+          # Подписываем его встроенным в Android SDK ключом отладки (debug-key)
+          # Это сделает файл релизным, уберет Leaks, но позволит установить его без сторонних программ
+          $ANDROID_HOME/build-tools/34.0.0/apksigner sign --ks $HOME/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out androidApp/build/outputs/apk/meshtastic-433-release.apk "$UNSIGNED_APK"
 
       - name: Report App Size
         if: always()
