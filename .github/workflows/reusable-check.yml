@@ -523,8 +523,8 @@ jobs:
           echo "VERSION_NAME=${BASE}-SNAPSHOT" >> "$GITHUB_ENV"
 
       - name: Build Android APKs
-        run: ./gradlew androidApp:assembleFdroidDebug androidApp:assembleGoogleDebug -Pci=true --parallel --configuration-cache --continue
-
+        run: ./gradlew :androidApp:assembleFdroidDebug -Pci=true
+        
       - name: Upload debug artifact
         if: ${{ inputs.upload_artifacts }}
         uses: actions/upload-artifact@v7
