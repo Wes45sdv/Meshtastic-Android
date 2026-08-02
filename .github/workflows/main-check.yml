@@ -30,7 +30,7 @@ jobs:
   #     times) would slow every merge.
   # run_lint: false skips lint, screenshot-check, and rb-check (queue-verified).
   validate-and-build:
-    if: github.repository == 'meshtastic/Meshtastic-Android'
+  #    if: github.repository == 'meshtastic/Meshtastic-Android'
     uses: ./.github/workflows/reusable-check.yml
     with:
       run_lint: false
