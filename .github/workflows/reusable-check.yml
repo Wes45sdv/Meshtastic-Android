@@ -501,6 +501,9 @@ jobs:
           # 3. Меняем имя приложения, чтобы на экране телефона оно называлось "Meshtastic 433"
           find . -name "strings.xml" -exec sed -i 's/<string name="app_name">Meshtastic<\/string>/<string name="app_name">Meshtastic 433<\/string>/g' {} +
 
+          # 4. Удаляем конфигурацию Google Services, которая вызывает ошибку сопоставления ID пакета
+          rm -f androidApp/google-services.json
+
       - name: Gradle Setup
         uses: ./.github/actions/gradle-setup
         with:
