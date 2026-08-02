@@ -488,7 +488,7 @@ jobs:
           fetch-depth: 0
           filter: 'blob:none'
           submodules: true
-
+          
       - name: Change Package Name and App Name for Coexistence
         run: |
           # 1. Меняем applicationId во всех gradle-файлах, чтобы избежать конфликта с Google Play
@@ -498,10 +498,15 @@ jobs:
           # 2. Отключаем встроенные суффиксы для дебага, чтобы точка не двоилась
           find . -name "build.gradle*" -exec sed -i 's/applicationIdSuffix/ \/\/ /g' {} +
 
-          # 3. Меняем имя приложения, чтобы на экране телефона оно называлось "Meshtastic 433"
+          # 3. Меняем имя приложения на Meshtastic 433
           find . -name "strings.xml" -exec sed -i 's/<string name="app_name">Meshtastic<\/string>/<string name="app_name">Meshtastic 433<\/string>/g' {} +
 
-          # 4. Удаляем конфигурацию Google Services, которая вызывает ошибку сопоставления ID пакета
+          # 4. Полностью удаляем плагин Google Services из конфигурации, чтобы он не искал json-файл
+          find . -name "build.gradle*" -exec sed -i 's/id("com.google.gms.google-services")/\/\/ id("com.google.gms.google-services")/g' {} +
+          find . -name "build.gradle*" -exec sed -i "s/apply plugin: 'com.google.gms.google-services'/\/\/ apply plugin: 'com.google.gms.google-services'/g" {} +
+          find . -name "build.gradle*" -exec sed -i "s/plugin:\s*'com.google.gms.google-services'/\/\/ plugin: 'com.google.gms.google-services'/g" {} +
+
+          # 5. Удаляем сам конфигурационный файл
           rm -f androidApp/google-services.json
 
       - name: Gradle Setup
